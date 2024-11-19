@@ -15,16 +15,12 @@ public class Grid implements GridInterface {
 
     @Override
     public boolean isValidPosition(int x, int y) {
-        return false;
+        return true;
     }
 
     @Override
     public boolean isEmpty(int x, int y) {
-        return false;
+        return true;
     }
 
-    @Override
-    public boolean IsPositionTaken(int x, int y) {
-        return false;
-    }
 }

@@ -3,12 +3,12 @@ import java.io.FileReader;
 import java.util.Scanner;
 
 public class Game {
-    private GameIO gameIO;
+    private final GameIO gameIO;
     private Grid grid;
     private Player[] players;
     private int currentPlayerIndex;
-    private int activePlayerIndex;
-    private boolean isGameOver;
+    private int activePlayers;
+    private final boolean isGameOver;
 
     public Game() {
         gameIO = new GameIO();
@@ -40,6 +40,10 @@ public class Game {
     private void startGameLoop() {
         String command;
         while (!(command = gameIO.readCommand()).equals("quit")) {
+            if (isGameOver){
+                gameIO.printGameOver();
+                continue;
+            }
             processCommand(command);
         }
         processQuit();
@@ -59,7 +63,7 @@ public class Game {
                 grid.loadRow(i, row);
             }
             file.close();
-        } catch (FileNotFoundException e) {
+        } catch (FileNotFoundException ignored) {
 
         }
     }
@@ -74,8 +78,8 @@ public class Game {
         String name = parts[3];
 
         if(grid.isValidPosition(row,col) && grid.isEmpty(row, col) && !IsPositionTaken(row, col)){
-            players[activePlayerIndex] = new Player(name, row, col);
-            activePlayerIndex++;
+            players[activePlayers] = new Player(name, row, col);
+            activePlayers++;
             gameIO.printPlayerAdded(name);
         }else{
             gameIO.printInvalidPlacement();
@@ -83,13 +87,67 @@ public class Game {
 
     }
 
+
+    //need to do
     private boolean IsPositionTaken(int row, int col){
-        return true;
+        return false;
     }
 
     private void processCommand(String command) {
+            String[] parts = command.split(" ");
+            Player player = players[currentPlayerIndex];
+
+            switch (parts[0]) {
+                case "move":
+                    //do move command
+                    break;
+                case "detect":
+                    //do detect command
+                    break;
+                case "skip":
+                    //do skip command
+                    break;
+                case "rank":
+                    //do rank command
+                    return;
+                default:
+                    gameIO.printInvalidCommand();
+                    return;
+            }
+            nextTurn();
     }
 
-    private void processQuit() {
+    private void nextTurn() {
+        if (players[currentPlayerIndex].isProtected()) {
+            players[currentPlayerIndex].decreaseShield();
+        }
+
+        do {
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+        }while (players[currentPlayerIndex].isEliminated() && !isGameOver);
     }
-}
+
+    private Player getWinner() {
+        if(isGameOver){
+            for (Player player : players) {
+                if (!player.isEliminated()){
+                    return player;
+                }
+            }
+        }
+        return players[0];
+    }
+    private void processQuit() {
+        if(!isGameOver) {
+            gameIO.printGameOver();
+            return;
+        }
+        Player winner = getWinner();
+
+        if(winner.hasCollectedCrystal()){
+            gameIO.printWinnerWithCrystal(winner.getName());
+        }else   {
+            gameIO.printWinnerLastActive(winner.getName());
+        }
+     }
+    }

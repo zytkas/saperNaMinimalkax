@@ -29,8 +29,24 @@ public class GameIO {
         System.out.println("Invalid player placement");
     }
 
+    public void printInvalidCommand() {
+        System.out.println("Invalid command");
+    }
+
     public void printGameOver() {
         System.out.println("The game is over");
+    }
+
+    public void printGameNotOverYet() {
+        System.out.println("The game was not over yet");
+    }
+
+    public void printWinnerWithCrystal(String name) {
+        System.out.println(name + " has won as they collected the cosmic crystal");
+    }
+
+    public void printWinnerLastActive(String name) {
+        System.out.println(name + " has won as they are the only active player");
     }
 
     public void printMoveResult(String playerName, int row, int col) {
