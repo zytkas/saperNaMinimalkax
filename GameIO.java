@@ -37,6 +37,17 @@ public class GameIO {
         System.out.println(playerName + " has moved to position (" + row + ", " + col + ")");
     }
 
+    public int parseNumber(String number) {
+        int result = 0;
+        int i = 0;
+
+        while (i < number.length()) {
+                result = result * 10 + (number.charAt(i) - '0'); //Moving ASCII number '0' is 48, 1 is 49, etc...
+                i++;
+            }
+        return result;
+    }
+
     public void close() {
         scanner.close();
     }
