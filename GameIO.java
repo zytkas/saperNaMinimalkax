@@ -49,6 +49,16 @@ public class GameIO {
         System.out.println(name + " has won as they are the only active player");
     }
 
+    public void printOutOfBounds(String name) {
+        System.out.println(name + "cannot move outside the grid");
+    }
+
+    public void printPositionTaken() {
+        System.out.println("The position is occupied");
+    }
+
+    
+
     public void printMoveResult(String playerName, int row, int col) {
         System.out.println(playerName + " has moved to position (" + row + ", " + col + ")");
     }

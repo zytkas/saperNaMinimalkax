@@ -8,7 +8,7 @@ public class Game {
     private Player[] players;
     private int currentPlayerIndex;
     private int activePlayers;
-    private final boolean isGameOver;
+    private boolean isGameOver;
 
     public Game() {
         gameIO = new GameIO();
@@ -59,7 +59,7 @@ public class Game {
             grid = new Grid(rows, cols);
 
             for (int i = 0; i < rows; i++) {
-                String row = file.nextLine();
+                char[] row = file.nextLine().toCharArray();
                 grid.loadRow(i, row);
             }
             file.close();
@@ -77,7 +77,9 @@ public class Game {
         int col = gameIO.parseNumber(parts[2]);
         String name = parts[3];
 
-        if(grid.isValidPosition(row,col) && grid.isEmpty(row, col) && !IsPositionTaken(row, col)){
+        Position checkPosition = new Position(row, col);
+
+        if(grid.isValidPosition(checkPosition) && grid.isEmpty(checkPosition) && !isPositionTaken(checkPosition)) {
             players[activePlayers] = new Player(name, row, col);
             activePlayers++;
             gameIO.printPlayerAdded(name);
@@ -87,34 +89,153 @@ public class Game {
 
     }
 
-
-    //need to do
-    private boolean IsPositionTaken(int row, int col){
+    private boolean isPositionTaken(Position pos) {
+        for (int i = 0; i < activePlayers; i++) {
+            if (!players[i].isEliminated() &&
+                    players[i].getPosition().equals(pos)) {
+                return true;
+            }
+        }
         return false;
     }
-
     private void processCommand(String command) {
             String[] parts = command.split(" ");
             Player player = players[currentPlayerIndex];
 
             switch (parts[0]) {
                 case "move":
-                    //do move command
+                    processMoveCommand(player, parts[1]);
                     break;
                 case "detect":
-                    //do detect command
+                    processDetectCommand(player);
                     break;
                 case "skip":
-                    //do skip command
+                    processSkipCommand(player);
                     break;
                 case "rank":
-                    //do rank command
+                    processRankCommand();
                     return;
                 default:
                     gameIO.printInvalidCommand();
                     return;
             }
             nextTurn();
+    }
+
+    private void processMoveCommand(Player player, String direction) {
+        Position newPosition = player.getPosition().calculateNewPosition(direction);
+
+        if(!grid.isValidPosition(newPosition)) {
+            gameIO.printOutOfBounds(player.getName());
+            return;
+        }
+
+        if(isPositionTaken(newPosition)) {
+            gameIO.printPositionTaken();
+            return;
+        }
+
+        char cell = grid.getCell(newPosition);
+
+        if (cell == 'M') {
+            if (player.isProtected()) {
+                //print protected from mine
+                grid.clearCell(newPosition);
+            }else{
+                //print stepped on mine
+                eliminatePlayer(player);
+                return;
+            }
+        } else if (cell >= '1' && cell <= '9'){
+            int shiledDuration = Character.getNumericValue(cell);
+            player.addShield(shiledDuration);
+            //print shield pick up
+            grid.clearCell(newPosition);
+        } else if (cell == 'X'){
+            isGameOver = true;
+            player.collectCrystal();
+            //print player has stepped on crystal
+            return;
+        }
+
+        player.moveTo(newPosition);
+        //print player moved
+    }
+
+    private void eliminatePlayer(Player player) {
+        player.eliminate();
+        activePlayers--;
+
+        if (getActivePlayersCount() == 1) {
+            isGameOver = true;
+        }
+    }
+
+    private int getActivePlayersCount() {
+        int count = 0;
+        for (int i = 0; i < players.length; i++) {
+            if (!players[i].isEliminated()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private void processDetectCommand(Player player) {
+        int mines = grid.countSurroundingMines(player.getPosition());
+        //print number of mines
+    }
+
+    private void processSkipCommand(Player player) {
+        //print move skipped
+    }
+
+    private void processRankCommand() {
+        Player[] rankedPlayers = getRankedPlayers();
+        for(Player player : rankedPlayers) {
+            //print player status
+        }
+    }
+
+    private Player[] getRankedPlayers() {
+        // Создаем новый массив такого же размера
+        Player[] ranked = new Player[players.length];
+
+        // Вручную копируем элементы
+        for(int i = 0; i < players.length; i++) {
+            ranked[i] = players[i];
+        }
+
+        // Сортировка пузырьком по нашим правилам
+        for (int i = 0; i < ranked.length - 1; i++) {
+            for (int j = 0; j < ranked.length - i - 1; j++) {
+                if (shouldSwapPlayers(ranked[j], ranked[j + 1])) {
+                    // Меняем местами
+                    Player temp = ranked[j];
+                    ranked[j] = ranked[j + 1];
+                    ranked[j + 1] = temp;
+                }
+            }
+        }
+
+        return ranked;
+    }
+
+    private boolean shouldSwapPlayers(Player p1, Player p2) {
+        if (p1.isEliminated() != p2.isEliminated()) {
+            return p1.isEliminated(); // eliminated players go last
+        }
+
+        if (p1.isEliminated()) {
+            return p1.getName().compareTo(p2.getName()) > 0;
+        } else {
+            int dist1 = grid.getDistanceToCrystal(p1.getPosition());
+            int dist2 = grid.getDistanceToCrystal(p2.getPosition());
+            if (dist1 != dist2) {
+                return dist1 > dist2;
+            }
+            return p1.getName().compareTo(p2.getName()) > 0;
+        }
     }
 
     private void nextTurn() {
@@ -139,7 +260,7 @@ public class Game {
     }
     private void processQuit() {
         if(!isGameOver) {
-            gameIO.printGameOver();
+            gameIO.printGameNotOverYet();
             return;
         }
         Player winner = getWinner();
