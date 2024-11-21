@@ -2,52 +2,45 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.Scanner;
 
+
 public class Game {
-    private final GameIO gameIO;
+
+    // Константы для результатов движения
+    public static final int MOVE_SUCCESS = 0;
+    public static final int MOVE_OUT_OF_BOUNDS = 1;
+    public static final int MOVE_POSITION_OCCUPIED = 2;
+    public static final int MOVE_MINE_HIT = 3;
+    public static final int MOVE_SHIELD_PICKUP = 4;
+    public static final int MOVE_CRYSTAL_FOUND = 5;
+
     private Grid grid;
     private Player[] players;
     private int currentPlayerIndex;
     private int activePlayers;
     private boolean isGameOver;
 
-    public Game() {
-        gameIO = new GameIO();
+    public Game(String filename) {
         isGameOver = false;
         currentPlayerIndex = 0;
-    }
-
-    public void start() {
-        initializeGame();
-        addPlayers();
-        startGameLoop();
-        gameIO.close();
-    }
-
-    private void initializeGame(){
-        String filename = gameIO.readFileName();
         loadGrid(filename);
     }
 
-    private void addPlayers() {
-        int numPlayers = gameIO.readNumberOfPlayers();
+
+    public void initializePlayers(int numPlayers) {
         players = new Player[numPlayers];
-
-        for (int i = 0; i < numPlayers; i++) {
-            processPlayerInput(gameIO.readCommand());
-        }
+        activePlayers = 0;
     }
 
-    private void startGameLoop() {
-        String command;
-        while (!(command = gameIO.readCommand()).equals("quit")) {
-            if (isGameOver){
-                gameIO.printGameOver();
-                continue;
-            }
-            processCommand(command);
+    public boolean addPlayer(int row, int col, String name) {
+        Position pos = new Position(row, col);
+        if(grid.isValidPosition(pos) && grid.isEmpty(pos) && !isPositionTaken(pos)) {
+            players[activePlayers] = new Player(name, row, col);
+            activePlayers++;
+            return true;
         }
-        processQuit();
+        return false;
     }
+
 
     private void loadGrid(String filename){
         try {
@@ -68,26 +61,6 @@ public class Game {
         }
     }
 
-    private void processPlayerInput(String input) {
-        String[] parts = input.split(" ", 4);
-        if (parts.length < 4 || !parts[0].equals("player")) {
-            return;
-        }
-        int row = gameIO.parseNumber(parts[1]);
-        int col = gameIO.parseNumber(parts[2]);
-        String name = parts[3];
-
-        Position checkPosition = new Position(row, col);
-
-        if(grid.isValidPosition(checkPosition) && grid.isEmpty(checkPosition) && !isPositionTaken(checkPosition)) {
-            players[activePlayers] = new Player(name, row, col);
-            activePlayers++;
-            gameIO.printPlayerAdded(name);
-        }else{
-            gameIO.printInvalidPlacement();
-        }
-
-    }
 
     private boolean isPositionTaken(Position pos) {
         for (int i = 0; i < activePlayers; i++) {
@@ -98,68 +71,54 @@ public class Game {
         }
         return false;
     }
-    private void processCommand(String command) {
-            String[] parts = command.split(" ");
-            Player player = players[currentPlayerIndex];
 
-            switch (parts[0]) {
-                case "move":
-                    processMoveCommand(player, parts[1]);
-                    break;
-                case "detect":
-                    processDetectCommand(player);
-                    break;
-                case "skip":
-                    processSkipCommand(player);
-                    break;
-                case "rank":
-                    processRankCommand();
-                    return;
-                default:
-                    gameIO.printInvalidCommand();
-                    return;
-            }
-            nextTurn();
-    }
-
-    private void processMoveCommand(Player player, String direction) {
+    public int movePlayer(String direction) {
+        Player player = getCurrentPlayer();
         Position newPosition = player.getPosition().calculateNewPosition(direction);
 
-        if(!grid.isValidPosition(newPosition)) {
-            gameIO.printOutOfBounds(player.getName());
-            return;
+        if (!grid.isValidPosition(newPosition)) {
+            return MOVE_OUT_OF_BOUNDS;
         }
 
-        if(isPositionTaken(newPosition)) {
-            gameIO.printPositionTaken();
-            return;
+        if (isPositionTaken(newPosition)) {
+            return MOVE_POSITION_OCCUPIED;
         }
 
         char cell = grid.getCell(newPosition);
+        int result = processCell(player, newPosition, cell);
 
+        if (result != MOVE_OUT_OF_BOUNDS && result != MOVE_POSITION_OCCUPIED) {
+            nextTurn();
+        }
+
+        return result;
+    }
+
+    private int processCell(Player player, Position newPosition, char cell) {
         if (cell == 'M') {
             if (player.isProtected()) {
-                //print protected from mine
                 grid.clearCell(newPosition);
-            }else{
-                //print stepped on mine
+                player.moveTo(newPosition);
+                return MOVE_SUCCESS;
+            } else {
                 eliminatePlayer(player);
-                return;
+                return MOVE_MINE_HIT;
             }
-        } else if (cell >= '1' && cell <= '9'){
-            int shiledDuration = Character.getNumericValue(cell);
-            player.addShield(shiledDuration);
-            //print shield pick up
+        } else if (cell >= '1' && cell <= '9') {
+            int shieldDuration = Character.getNumericValue(cell);
+            player.addShield(shieldDuration);
             grid.clearCell(newPosition);
-        } else if (cell == 'X'){
+            player.moveTo(newPosition);
+            return MOVE_SHIELD_PICKUP;
+        } else if (cell == 'X') {
             isGameOver = true;
             player.collectCrystal();
-            //print player has stepped on crystal
-            return;
+            player.moveTo(newPosition);
+            return MOVE_CRYSTAL_FOUND;
         }
 
         player.moveTo(newPosition);
-        //print player moved
+        return MOVE_SUCCESS;
     }
 
     private void eliminatePlayer(Player player) {
@@ -171,9 +130,19 @@ public class Game {
         }
     }
 
+    public int detect() {
+        int mines = grid.countSurroundingMines(getCurrentPlayer().getPosition());
+        nextTurn();
+        return mines;
+    }
+
+    public void skip() {
+        nextTurn();
+    }
+
     private int getActivePlayersCount() {
         int count = 0;
-        for (int i = 0; i < players.length; i++) {
+        for (int i = 0; i < activePlayers; i++) {
             if (!players[i].isEliminated()) {
                 count++;
             }
@@ -181,23 +150,8 @@ public class Game {
         return count;
     }
 
-    private void processDetectCommand(Player player) {
-        int mines = grid.countSurroundingMines(player.getPosition());
-        //print number of mines
-    }
 
-    private void processSkipCommand(Player player) {
-        //print move skipped
-    }
-
-    private void processRankCommand() {
-        Player[] rankedPlayers = getRankedPlayers();
-        for(Player player : rankedPlayers) {
-            //print player status
-        }
-    }
-
-    private Player[] getRankedPlayers() {
+    public Player[] getRankedPlayers() {
         // Создаем новый массив такого же размера
         Player[] ranked = new Player[players.length];
 
@@ -239,16 +193,15 @@ public class Game {
     }
 
     private void nextTurn() {
-        if (players[currentPlayerIndex].isProtected()) {
-            players[currentPlayerIndex].decreaseShield();
-        }
-
         do {
-            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+            currentPlayerIndex = (currentPlayerIndex + 1) % activePlayers;
+            if (players[currentPlayerIndex].isProtected()) {
+                players[currentPlayerIndex].decreaseShield();
+            }
         }while (players[currentPlayerIndex].isEliminated() && !isGameOver);
     }
 
-    private Player getWinner() {
+    public Player getWinner() {
         if(isGameOver){
             for (Player player : players) {
                 if (!player.isEliminated()){
@@ -258,17 +211,13 @@ public class Game {
         }
         return players[0];
     }
-    private void processQuit() {
-        if(!isGameOver) {
-            gameIO.printGameNotOverYet();
-            return;
-        }
-        Player winner = getWinner();
 
-        if(winner.hasCollectedCrystal()){
-            gameIO.printWinnerWithCrystal(winner.getName());
-        }else   {
-            gameIO.printWinnerLastActive(winner.getName());
-        }
-     }
+    public boolean isGameOver() {
+        return isGameOver;
     }
+
+    public Player getCurrentPlayer() {
+        return players[currentPlayerIndex];
+    }
+
+}
