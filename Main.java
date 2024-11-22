@@ -1,5 +1,7 @@
 import java.util.Scanner;
 
+import static java.lang.Integer.parseInt;
+
 public class Main {
     private static final String PLAYER_ADDED = "%s was added to the game%n";
     private static final String INVALID_PLACEMENT = "Invalid player placement%n";
@@ -13,7 +15,7 @@ public class Main {
     private static final String MOVE_RESULT = "%s has moved to position (%d, %d)%n";
     private static final String SHIELD_PICKUP = "%s picked up a shield and is now protected for %d turns%n";
     private static final String PROTECTED = "%s is protected for %d more turns%n";
-    private static final String MINE_PROTECTION = "%s is protected from the mine%n";
+    private static final String MINE_PROTECTION = "%s is protected from the proton mine%n";
     private static final String STEPPED_MINE = "%s stepped on a mine%n";
     private static final String CRYSTAL_FOUND = "%s found the cosmic crystal%n";
     private static final String MINES_AROUND = "There are %d mines around the cell%n";
@@ -24,11 +26,10 @@ public class Main {
 
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        // Инициализация игры
+
         String filename = scanner.nextLine();
         game = new Game(filename);
 
-        // Добавление игроков
         int numPlayers = scanner.nextInt();
         scanner.nextLine();
         game.initializePlayers(numPlayers);
@@ -38,19 +39,15 @@ public class Main {
             handlePlayerAdd(playerInput);
         }
 
-        // Основной игровой цикл
         String command;
         while (!(command = scanner.nextLine()).equals("quit")) {
-            if (game.isGameOver()) {
-                System.out.format(GAME_OVER);
-                continue;
-            }
             processCommand(command);
         }
         handleQuit();
 
         scanner.close();
     }
+
 
 
     private static void handlePlayerAdd(String input) {
@@ -60,8 +57,8 @@ public class Main {
             return;
         }
 
-        int row = parseNumber(parts[1]);
-        int col = parseNumber(parts[2]);
+        int row = parseInt(parts[1]);
+        int col = parseInt(parts[2]);
         String name = parts[3];
 
         if (game.addPlayer(row, col, name)) {
@@ -74,6 +71,11 @@ public class Main {
     private static void processCommand(String command) {
         String[] parts = command.split(" ");
         Player currentPlayer = game.getCurrentPlayer();
+
+        if (game.isGameOver() && !parts[0].equals("rank") && !parts[0].equals("quit")) {
+            System.out.format(GAME_OVER);
+            return;
+        }
 
         switch (parts[0]) {
             case "move":
@@ -88,10 +90,9 @@ public class Main {
                 break;
             case "rank":
                 handleRank();
-                return; // rank не вызывает nextTurn
+                return;
             default:
                 System.out.format(INVALID_COMMAND);
-                return; // invalid command не вызывает nextTurn
         }
     }
 
@@ -158,15 +159,5 @@ public class Main {
         } else {
             System.out.format(WINNER_LAST, winner.getName());
         }
-    }
-
-    private static int parseNumber(String number) {
-        int result = 0;
-        int i = 0;
-        while (i < number.length()) {
-            result = result * 10 + (number.charAt(i) - '0');
-            i++;
-        }
-        return result;
     }
 }

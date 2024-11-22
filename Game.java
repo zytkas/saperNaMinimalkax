@@ -5,7 +5,6 @@ import java.util.Scanner;
 
 public class Game {
 
-    // Константы для результатов движения
     public static final int MOVE_SUCCESS = 0;
     public static final int MOVE_OUT_OF_BOUNDS = 1;
     public static final int MOVE_POSITION_OCCUPIED = 2;
@@ -16,6 +15,7 @@ public class Game {
     private Grid grid;
     private Player[] players;
     private int currentPlayerIndex;
+    private int allPlayers;
     private int activePlayers;
     private boolean isGameOver;
 
@@ -29,6 +29,7 @@ public class Game {
     public void initializePlayers(int numPlayers) {
         players = new Player[numPlayers];
         activePlayers = 0;
+        allPlayers = 0;
     }
 
     public boolean addPlayer(int row, int col, String name) {
@@ -36,6 +37,7 @@ public class Game {
         if(grid.isValidPosition(pos) && grid.isEmpty(pos) && !isPositionTaken(pos)) {
             players[activePlayers] = new Player(name, row, col);
             activePlayers++;
+            allPlayers++;
             return true;
         }
         return false;
@@ -77,17 +79,19 @@ public class Game {
         Position newPosition = player.getPosition().calculateNewPosition(direction);
 
         if (!grid.isValidPosition(newPosition)) {
+            nextTurn();
             return MOVE_OUT_OF_BOUNDS;
         }
 
         if (isPositionTaken(newPosition)) {
+            nextTurn();
             return MOVE_POSITION_OCCUPIED;
         }
 
         char cell = grid.getCell(newPosition);
         int result = processCell(player, newPosition, cell);
 
-        if (result != MOVE_OUT_OF_BOUNDS && result != MOVE_POSITION_OCCUPIED) {
+        if (!isGameOver && result != MOVE_OUT_OF_BOUNDS && result != MOVE_POSITION_OCCUPIED) {
             nextTurn();
         }
 
@@ -152,19 +156,15 @@ public class Game {
 
 
     public Player[] getRankedPlayers() {
-        // Создаем новый массив такого же размера
-        Player[] ranked = new Player[players.length];
+        Player[] ranked = new Player[allPlayers];
 
-        // Вручную копируем элементы
-        for(int i = 0; i < players.length; i++) {
+        for(int i = 0; i < allPlayers; i++) {
             ranked[i] = players[i];
         }
 
-        // Сортировка пузырьком по нашим правилам
         for (int i = 0; i < ranked.length - 1; i++) {
             for (int j = 0; j < ranked.length - i - 1; j++) {
                 if (shouldSwapPlayers(ranked[j], ranked[j + 1])) {
-                    // Меняем местами
                     Player temp = ranked[j];
                     ranked[j] = ranked[j + 1];
                     ranked[j + 1] = temp;
@@ -177,7 +177,7 @@ public class Game {
 
     private boolean shouldSwapPlayers(Player p1, Player p2) {
         if (p1.isEliminated() != p2.isEliminated()) {
-            return p1.isEliminated(); // eliminated players go last
+            return p1.isEliminated();
         }
 
         if (p1.isEliminated()) {
@@ -194,11 +194,11 @@ public class Game {
 
     private void nextTurn() {
         do {
-            currentPlayerIndex = (currentPlayerIndex + 1) % activePlayers;
-            if (players[currentPlayerIndex].isProtected()) {
-                players[currentPlayerIndex].decreaseShield();
-            }
+            currentPlayerIndex = (currentPlayerIndex + 1) % allPlayers;
         }while (players[currentPlayerIndex].isEliminated() && !isGameOver);
+        if (players[currentPlayerIndex].isProtected()) {
+            players[currentPlayerIndex].decreaseShield();
+        }
     }
 
     public Player getWinner() {

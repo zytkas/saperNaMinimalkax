@@ -5,6 +5,7 @@ public class Player {
     private int shieldDuration;
     private boolean hasCollectedCrystal;
 
+
     public Player(String name, int row, int col) {
         this.name = name;
         this.position = new Position(row, col);
