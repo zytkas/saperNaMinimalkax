@@ -13,14 +13,14 @@ public class Main {
     private static final String OUT_OF_BOUNDS = "%s cannot move outside the grid%n";
     private static final String POSITION_TAKEN = "The position is occupied%n";
     private static final String MOVE_RESULT = "%s has moved to position (%d, %d)%n";
-    private static final String SHIELD_PICKUP = "%s picked up a shield and is now protected for %d turns%n";
-    private static final String PROTECTED = "%s is protected for %d more turns%n";
+    private static final String SHIELD_PICKUP = "%s is protected for %d turns%n";
+    private static final String PROTECTED = "%s is protected by a force shield%n";
     private static final String MINE_PROTECTION = "%s is protected from the proton mine%n";
-    private static final String STEPPED_MINE = "%s stepped on a mine%n";
-    private static final String CRYSTAL_FOUND = "%s found the cosmic crystal%n";
+    private static final String STEPPED_MINE = "%s stepped into a proton mine%n";
+    private static final String CRYSTAL_FOUND = "%s has won%n";
     private static final String MINES_AROUND = "There are %d mines around the cell%n";
     private static final String SKIP_TURN = "%s skipped their turn%n";
-    private static final String RANK_FORMAT = "%s:(%d, %d) %d %s%n";
+    private static final String RANK_FORMAT = "%s: (%d, %d) %d %s%n";
 
     private static Game game;
 
@@ -52,10 +52,6 @@ public class Main {
 
     private static void handlePlayerAdd(String input) {
         String[] parts = input.split(" ", 4);
-        if (parts.length < 4 || !parts[0].equals("player")) {
-            System.out.format(INVALID_COMMAND);
-            return;
-        }
 
         int row = parseInt(parts[1]);
         int col = parseInt(parts[2]);
@@ -70,12 +66,25 @@ public class Main {
 
     private static void processCommand(String command) {
         String[] parts = command.split(" ");
-        Player currentPlayer = game.getCurrentPlayer();
 
-        if (game.isGameOver() && !parts[0].equals("rank") && !parts[0].equals("quit")) {
+        // Сначала проверяем, является ли команда вообще валидной
+        boolean isValidCommand = parts[0].equals("move") ||
+                parts[0].equals("detect") ||
+                parts[0].equals("skip") ||
+                parts[0].equals("rank");
+
+        if (!isValidCommand) {
+            System.out.format(INVALID_COMMAND);
+            return;
+        }
+
+        // Теперь проверяем состояние игры
+        if (game.isGameOver() && !parts[0].equals("rank")) {
             System.out.format(GAME_OVER);
             return;
         }
+
+        Player currentPlayer = game.getCurrentPlayer();
 
         switch (parts[0]) {
             case "move":
@@ -85,14 +94,11 @@ public class Main {
                 handleDetect();
                 break;
             case "skip":
-                System.out.format(SKIP_TURN, currentPlayer.getName());
                 handleSkip();
                 break;
             case "rank":
                 handleRank();
-                return;
-            default:
-                System.out.format(INVALID_COMMAND);
+                break;
         }
     }
 
@@ -102,6 +108,9 @@ public class Main {
             case Game.MOVE_SUCCESS:
                 Position pos = player.getPosition();
                 System.out.format(MOVE_RESULT, player.getName(), pos.getRow(), pos.getColumn());
+                break;
+            case Game.MOVE_SUCCESS_PROTECTED:
+                System.out.format(PROTECTED, player.getName());
                 break;
             case Game.MOVE_OUT_OF_BOUNDS:
                 System.out.format(OUT_OF_BOUNDS, player.getName());
@@ -129,14 +138,16 @@ public class Main {
     }
 
     private static void handleSkip() {
-        game.skip();
         System.out.format(SKIP_TURN, game.getCurrentPlayer().getName());
+        game.skip();
     }
 
 
     private static void handleRank() {
-        Player[] ranked = game.getRankedPlayers();
-        for (Player p : ranked) {
+        MyIterator iterator = game.getRankedPlayers();
+
+        while(iterator.hasNext()) {
+            Player p = iterator.next();
             System.out.format(RANK_FORMAT,
                     p.getName(),
                     p.getPosition().getRow(),

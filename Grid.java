@@ -20,7 +20,7 @@ public class Grid {
     }
 
     public boolean isValidPosition(Position pos) {
-        return pos.isVaildPosition(rows, cols);
+        return pos.isValidPosition(rows, cols);
     }
 
     public char getCell(Position pos) {
@@ -41,8 +41,8 @@ public class Grid {
 
         for(int i = Math.max(0, row - 1); i <= Math.min(rows - 1, row + 1); i++) {
             for(int j = Math.max(0, col - 1); j <= Math.min(cols - 1, col + 1); j++) {
-                if(i == row && j == col) continue;  // skip current pos
-                if(grid[i][j] == 'M') count++;
+                if(!(i == row && j == col) && grid[i][j] == 'M')
+                    count++;
             }
         }
         return count;
