@@ -1,7 +1,21 @@
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.util.Scanner;
-
+/**
+ * @author Danylo Zhdanov 68514 and Gilhereme Santos 65443
+ * Represents a game where multiple players navigate through a grid searching for a crystal
+ * while avoiding mines and collecting shields. This class implements a turn-based game system
+ * with state management for multiple players and game conditions.
+ * The game follows these core rules:
+ * - Players move on a grid containing mines, shields, and a crystal
+ * - Each player can move, detect mines, or skip their turn
+ * - Players can be eliminated by mines unless protected by shields
+ * - The game ends when either:
+ *   - A player finds the crystal
+ *   - Only one player remains active
+ *   - All players are eliminated
+ *
+ * @see Grid
+ * @see Player
+ * @see Position
+ */
 
 public class Game {
 
@@ -12,32 +26,50 @@ public class Game {
     public static final int MOVE_SHIELD_PICKUP = 4;
     public static final int MOVE_CRYSTAL_FOUND = 5;
     public static final int MOVE_SUCCESS_PROTECTED = 6;
+    public static final char MINE_CELL = 'M';
+    public static final char MIN_SHIELD_CELL = '1';
+    public static final char MAX_SHIELD_CELL = '9';
+    public static final char CRYSTAL_CELL = 'X';
+    public static final char EMPTY_CELL = '.';
 
-    private Grid grid;
+    private final Grid grid;
     private Player[] players;
-    private Player[] rankedPlayers;
     private int currentPlayerIndex;
     private int allPlayers;
     private int activePlayers;
     private boolean isGameOver;
 
-
-    public Game(String filename) {
+    public Game(Grid grid) {
         isGameOver = false;
         currentPlayerIndex = 0;
-        loadGrid(filename);
+        this.grid = grid;
     }
 
-
+    /**
+     * Initializes the player array with the specified number of slots.
+     * Must be called before adding any players to the game.
+     *
+     * @param numPlayers The maximum number of players that can join the game
+     */
     public void initializePlayers(int numPlayers) {
         players = new Player[numPlayers];
         activePlayers = 0;
         allPlayers = 0;
     }
 
+
+    /**
+     * Attempts to add a new player to the game at the specified position.
+     * The position must be valid, empty, and not occupied by another player.
+     *
+     * @param row The row coordinate for the new player
+     * @param col The column coordinate for the new player
+     * @param name The name of the new player
+     * @return true if the player was successfully added, false otherwise
+     */
     public boolean addPlayer(int row, int col, String name) {
         Position pos = new Position(row, col);
-        if(grid.isValidPosition(pos) && grid.isEmpty(pos) && !isPositionTaken(pos)) {
+        if (grid.isValidPosition(pos) && grid.isEmpty(pos) && !isPositionTaken(pos)) {
             players[activePlayers] = new Player(name, row, col);
             activePlayers++;
             allPlayers++;
@@ -46,27 +78,12 @@ public class Game {
         return false;
     }
 
-
-    private void loadGrid(String filename){
-        try {
-            Scanner file = new Scanner(new FileReader(filename));
-            int rows = file.nextInt();
-            int cols = file.nextInt();
-            file.nextLine();
-
-            grid = new Grid(rows, cols);
-
-            for (int i = 0; i < rows; i++) {
-                char[] row = file.nextLine().toCharArray();
-                grid.loadRow(i, row);
-            }
-            file.close();
-        } catch (FileNotFoundException ignored) {
-
-        }
-    }
-
-
+    /**
+     * Checks if a position is currently occupied by any active player.
+     *
+     * @param pos The position to check
+     * @return true if the position is occupied by an active player, false otherwise
+     */
     private boolean isPositionTaken(Position pos) {
         for (int i = 0; i < allPlayers; i++) {
             if (!players[i].isEliminated() &&
@@ -77,6 +94,13 @@ public class Game {
         return false;
     }
 
+    /**
+     * Processes a move for the current player in the specified direction. Handles moving to
+     * empty cells, out of bounds attempts, occupied positions, mines, shields, and crystal.
+     *
+     * @param direction The direction to move ("up", "down", "left", "right")
+     * @return An integer constant indicating the move result
+     */
     public int movePlayer(String direction) {
         Player player = getCurrentPlayer();
         Position newPosition = player.getPosition().calculateNewPosition(direction);
@@ -86,29 +110,32 @@ public class Game {
             nextTurn();
             return MOVE_OUT_OF_BOUNDS;
         }
-
         if (isPositionTaken(newPosition)) {
             player.finishTurn();
             nextTurn();
             return MOVE_POSITION_OCCUPIED;
         }
-
         char cell = grid.getCell(newPosition);
-
-        // Проверяем позицию до того как закончить ход
         int result = processCell(player, newPosition, cell);
 
-        // Только потом заканчиваем ход
         player.finishTurn();
         if (!isGameOver) {
             nextTurn();
         }
-
         return result;
     }
 
+    /**
+     * Processes the interaction between a player and a cell on the grid.
+     * Handles special cell types (mine, shield, crystal) and their effects.
+     *
+     * @param player The player moving to the cell
+     * @param newPosition The position of the cell
+     * @param cell The type of cell (represented by a char)
+     * @return An integer constant indicating the result of the interaction
+     */
     private int processCell(Player player, Position newPosition, char cell) {
-        if (cell == 'M') {
+        if (cell == MINE_CELL) {
             if (player.isProtected()) {
                 grid.clearCell(newPosition);
                 player.moveTo(newPosition);
@@ -119,23 +146,27 @@ public class Game {
                 player.moveTo(newPosition);
                 return MOVE_MINE_HIT;
             }
-        } else if (cell >= '1' && cell <= '9') {
-            int shieldDuration = cell - '0';
-            player.addShield(shieldDuration);
+        } else if (cell >= MIN_SHIELD_CELL && cell <= MAX_SHIELD_CELL) {
+            player.addShield(Character.getNumericValue(cell));
             grid.clearCell(newPosition);
             player.moveTo(newPosition);
             return MOVE_SHIELD_PICKUP;
-        } else if (cell == 'X') {
+        } else if (cell == CRYSTAL_CELL) {
             isGameOver = true;
             player.collectCrystal();
             player.moveTo(newPosition);
             return MOVE_CRYSTAL_FOUND;
         }
-
         player.moveTo(newPosition);
         return MOVE_SUCCESS;
     }
 
+    /**
+     * Eliminates a player from the game and checks if this triggers game over.
+     * Game over occurs if only one player remains active after elimination.
+     *
+     * @param player The player to eliminate
+     */
     private void eliminatePlayer(Player player) {
         player.eliminate();
         activePlayers--;
@@ -145,6 +176,12 @@ public class Game {
         }
     }
 
+    /**
+     * Allows the current player to detect mines in adjacent cells.
+     * Counts the number of mines in the eight cells surrounding the player's position.
+     *
+     * @return The number of mines in adjacent cells
+     */
     public int detect() {
         int mines = grid.countSurroundingMines(getCurrentPlayer().getPosition());
         getCurrentPlayer().finishTurn();
@@ -152,27 +189,39 @@ public class Game {
         return mines;
     }
 
+    /**
+     * Allows the current player to skip their turn.
+     * Advances the game to the next player's turn.
+     */
     public void skip() {
         getCurrentPlayer().finishTurn();
         nextTurn();
     }
 
-
+    /**
+     * Creates and returns an iterator over players sorted by their ranking.
+     * Players are ranked based on the following criteria (in order):
+     * 1. Crystal possession (player with crystal ranks highest)
+     * 2. Elimination status (active players rank higher than eliminated)
+     * 3. For eliminated players: number of moves (more moves rank higher)
+     * 4. For active players: distance to crystal (closer ranks higher)
+     * 5. Alphabetical order of names (as tiebreaker)</p>
+     *
+     * @return An iterator over the sorted player array
+     */
+    @SuppressWarnings("ManualArrayCopy")
     public MyIterator getRankedPlayers() {
-        rankedPlayers = new Player[allPlayers];
-        for(int i = 0; i < allPlayers; i++) {
+        Player[] rankedPlayers = new Player[allPlayers];
+        for (int i = 0; i < allPlayers; i++) {
             rankedPlayers[i] = players[i];
         }
 
-        // Сортировка пузырьком
         for (int i = 0; i < rankedPlayers.length - 1; i++) {
             for (int j = 0; j < rankedPlayers.length - i - 1; j++) {
                 Player p1 = rankedPlayers[j];
                 Player p2 = rankedPlayers[j + 1];
 
                 if (shouldSwapPlayers(p1, p2)) {
-
-
                     Player temp = rankedPlayers[j];
                     rankedPlayers[j] = rankedPlayers[j + 1];
                     rankedPlayers[j + 1] = temp;
@@ -182,40 +231,47 @@ public class Game {
         return new MyIterator(rankedPlayers);
     }
 
+    /**
+     * Determines if two players should swap positions in the ranking.
+     * Implements the ranking criteria logic described in getRankedPlayers.
+     *
+     * @param p1 The first player to compare
+     * @param p2 The second player to compare
+     * @return true if the players should swap positions, false otherwise
+     */
     private boolean shouldSwapPlayers(Player p1, Player p2) {
-        // Сначала проверяем наличие кристалла
+        // Firstly checks if player has collected crystal
         if (p1.hasCollectedCrystal() != p2.hasCollectedCrystal()) {
-            return !p1.hasCollectedCrystal(); // Игрок с кристаллом должен быть впереди
+            return !p1.hasCollectedCrystal(); // Player with crystal should be 1'st
         }
-
-        // Проверяем статус eliminated
+        // Check status  eliminated
         if (p1.isEliminated() != p2.isEliminated()) {
-            return p1.isEliminated(); // Выбывшие игроки должны быть в конце
+            return p1.isEliminated(); // Eleminated players go last
         }
-
-        // Если оба eliminated, сравниваем по количеству сделанных ходов
+        // If both eliminated, compare by number of moves
         if (p1.isEliminated()) {
             if (p1.getTotalMoves() != p2.getTotalMoves()) {
-                return p1.getTotalMoves() < p2.getTotalMoves(); // Больше ходов = выше в списке
+                return p1.getTotalMoves() < p2.getTotalMoves(); // More moves = higher on list
             }
-            // При равном количестве ходов - по алфавиту
+            // Equal number of moves, compare by name
             return p1.getName().compareTo(p2.getName()) > 0;
         }
-
-        // Если оба активны, сравниваем по дистанции до кристалла
+        //If both active, compare by distance to crystal
         int dist1 = grid.getDistanceToCrystal(p1.getPosition());
         int dist2 = grid.getDistanceToCrystal(p2.getPosition());
         if (dist1 != dist2) {
-            return dist1 > dist2; // Меньшая дистанция = выше в списке
+            return dist1 > dist2; // Less distance = higher on list
         }
-
-        // При равной дистанции - по алфавиту
+        // Equal distance, compare by name
         return p1.getName().compareTo(p2.getName()) > 0;
     }
 
-
+    /**
+     * Advances the game to the next active player's turn.
+     * Skips eliminated players and can trigger game over if no valid moves remain.
+     */
     private void nextTurn() {
-        if(isGameOver) return;
+        if (isGameOver) return;
         int startingIndex = currentPlayerIndex;
         do {
             currentPlayerIndex = (currentPlayerIndex + 1) % allPlayers;
@@ -224,27 +280,68 @@ public class Game {
                 return;
             }
         } while (players[currentPlayerIndex].isEliminated());
-
     }
 
+    /**
+     * Determines and returns the winner of the game.
+     * Winners are determined in the following order:
+     * 1. Player who collected the crystal
+     * 2. Last surviving player
+     * 3. First available player (fallback)
+     *
+     * @return The winning Player object
+     */
     public Player getWinner() {
-        if(isGameOver){
-            // First check if anyone has collected the crystal
-            for (int i = 0; i < allPlayers; i++) {
-                Player player = players[i];
-                if (player != null && player.hasCollectedCrystal()) {
-                    return player;
-                }
+        if (isGameOver) {
+            Player winner = getWinnerWithCrystal();
+            if (winner != null) {
+                return winner;
             }
-            // If no one has the crystal, return the last active player
-            for (int i = 0; i < allPlayers; i++) {
-                Player player = players[i];
-                if (player != null && !player.isEliminated()) {
-                    return player;
-                }
+            winner = getLastSurvivingPlayer();
+            if (winner != null) {
+                return winner;
             }
         }
-        // If somehow we get here, return the first player (should never happen in normal gameplay)
+        return getFirstAvailablePlayer();
+    }
+
+    /**
+     * Finds the player who has collected the crystal, if any.
+     *
+     * @return The Player who has the crystal, or null if none
+     */
+    private Player getWinnerWithCrystal() {
+        for (int i = 0; i < allPlayers; i++) {
+            Player player = players[i];
+            if (player != null && player.hasCollectedCrystal()) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Finds the last non-eliminated player, if any.
+     *
+     * @return The last surviving Player, or null if none
+     */
+    private Player getLastSurvivingPlayer() {
+        for (int i = 0; i < allPlayers; i++) {
+            Player player = players[i];
+            if (player != null && !player.isEliminated()) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns the first non-null player in the array.
+     * This is a fallback method that should rarely be needed.
+     *
+     * @return The first available Player object
+     */
+    private Player getFirstAvailablePlayer() {
         for (int i = 0; i < allPlayers; i++) {
             if (players[i] != null) {
                 return players[i];
@@ -252,10 +349,21 @@ public class Game {
         }
         return players[0]; // Fallback, should never reach this point
     }
+
+    /**
+     * Checks if the game has ended.
+     *
+     * @return true if the game is over, false otherwise
+     */
     public boolean isGameOver() {
         return isGameOver;
     }
 
+    /**
+     * Gets the player whose turn it currently is.
+     *
+     * @return The current Player object
+     */
     public Player getCurrentPlayer() {
         return players[currentPlayerIndex];
     }
