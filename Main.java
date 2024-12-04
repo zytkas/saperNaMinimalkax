@@ -11,7 +11,6 @@
  * The game loop processes commands like move, detect, skip, and rank until a quit command
  * is received or the game ends through crystal collection or player elimination.
  */
-
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.Scanner;
