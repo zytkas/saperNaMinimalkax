@@ -11,7 +11,6 @@
  * The game loop processes commands like move, detect, skip, and rank until a quit command
  * is received or the game ends through crystal collection or player elimination.
  */
-
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.Scanner;
@@ -27,6 +26,7 @@ public class Main {
     private static final String CMD_DETECT = "detect";
     private static final String CMD_SKIP = "skip";
     private static final String CMD_RANK = "rank";
+    private static final String CMD_QUIT = "quit";
 
     /**
      * Game state messages used to communicate game status and validity.
@@ -59,7 +59,6 @@ public class Main {
     private static final String MSG_RANK_FORMAT = "%s: (%d, %d) %d %s%n";
     private static final String MSG_PLAYER_ELIMINATED = "eliminated";
     private static final String MSG_PLAYER_ACTIVE = "active";
-
 
     /**
      * The main entry point for the game application.
@@ -119,7 +118,7 @@ public class Main {
      */
     private static void initializePlayers(Scanner in, Game game) {
         int numPlayers = in.nextInt();
-        in.nextLine(); // Consume newline
+        in.nextLine();
         game.initializePlayers(numPlayers);
 
         for (int i = 0; i < numPlayers; i++) {
@@ -158,7 +157,7 @@ public class Main {
      */
     private static void processGameCommands(Scanner in, Game game) {
         String command;
-        while (!(command = in.nextLine()).equals("quit")) {
+        while (!(command = in.nextLine()).equals(CMD_QUIT)) {
             processCommand(command, game);
         }
         handleQuit(game);
@@ -256,9 +255,8 @@ public class Main {
      */
     private static void handleDetect(Game game) {
         int mines = game.detect();
-        if (mines >= 0) {
-            System.out.printf(MSG_MINES_AROUND, mines);
-        }
+        System.out.printf(MSG_MINES_AROUND, mines);
+
     }
 
     /**

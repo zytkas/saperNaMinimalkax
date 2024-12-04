@@ -57,7 +57,6 @@ public class Game {
         allPlayers = 0;
     }
 
-
     /**
      * Attempts to add a new player to the game at the specified position.
      * The position must be valid, empty, and not occupied by another player.
@@ -246,7 +245,7 @@ public class Game {
         }
         // Check status  eliminated
         if (p1.isEliminated() != p2.isEliminated()) {
-            return p1.isEliminated(); // Eleminated players go last
+            return p1.isEliminated(); // Eliminated players go last
         }
         // If both eliminated, compare by number of moves
         if (p1.isEliminated()) {
