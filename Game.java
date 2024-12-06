@@ -38,11 +38,18 @@ public class Game {
     private int allPlayers;
     private int activePlayers;
     private boolean isGameOver;
+    private int lastMoveRow;
+    private int lastMoveCol;
+    private int lastShieldDuration;
+    private String lastPlayerName;
 
-    public Game(Grid grid) {
+    public Game(int rows, int cols, char[][] gridData) {
         isGameOver = false;
         currentPlayerIndex = 0;
-        this.grid = grid;
+        this.grid = new Grid(rows, cols);
+        for (int i = 0; i < rows; i++) {
+            grid.loadRow(i, gridData[i]);
+        }
     }
 
     /**
@@ -103,24 +110,30 @@ public class Game {
     public int movePlayer(String direction) {
         Player player = getCurrentPlayer();
         Position newPosition = player.getPosition().calculateNewPosition(direction);
-
         if (!grid.isValidPosition(newPosition)) {
+            lastPlayerName = player.getName();
             player.finishTurn();
             nextTurn();
             return MOVE_OUT_OF_BOUNDS;
         }
         if (isPositionTaken(newPosition)) {
+            lastPlayerName = player.getName();
             player.finishTurn();
             nextTurn();
             return MOVE_POSITION_OCCUPIED;
         }
         char cell = grid.getCell(newPosition);
         int result = processCell(player, newPosition, cell);
-
+        int row = player.getPosition().getRow();
+        int col = player.getPosition().getColumn();
+        lastPlayerName = player.getName();
         player.finishTurn();
         if (!isGameOver) {
             nextTurn();
         }
+        lastMoveRow = row;
+        lastMoveCol = col;
+        lastShieldDuration = player.getShieldDuration();
         return result;
     }
 
@@ -290,18 +303,19 @@ public class Game {
      *
      * @return The winning Player object
      */
-    public Player getWinner() {
+    public String getWinner() {
         if (isGameOver) {
             Player winner = getWinnerWithCrystal();
             if (winner != null) {
-                return winner;
+
+                return winner.getName();
             }
             winner = getLastSurvivingPlayer();
             if (winner != null) {
-                return winner;
+                return winner.getName();
             }
         }
-        return getFirstAvailablePlayer();
+        return getFirstAvailablePlayer().getName();
     }
 
     /**
@@ -350,6 +364,15 @@ public class Game {
     }
 
     /**
+     * Returns the first non-null player in the array.
+     * This is a fallback method that should rarely be needed.
+     *
+     * @return The first available Player object
+     */
+    public boolean isCrystalCollected(){
+        return getWinnerWithCrystal() != null;
+    }
+    /**
      * Checks if the game has ended.
      *
      * @return true if the game is over, false otherwise
@@ -366,5 +389,22 @@ public class Game {
     public Player getCurrentPlayer() {
         return players[currentPlayerIndex];
     }
+
+    public int getPlayerCol(){
+        return lastMoveCol;
+    }
+
+    public int getPlayerRow(){
+        return lastMoveRow;
+    }
+
+    public String getName(){
+        return lastPlayerName;
+    }
+
+    public int getShield(){
+        return lastShieldDuration;
+    }
+
 
 }

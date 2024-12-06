@@ -69,8 +69,7 @@ public class Main {
     public static void main(String[] args) {
         Scanner in = new Scanner(System.in);
         String filename = in.nextLine();
-        Grid grid = loadGridFromFile(filename);
-        Game game = new Game(grid);
+        Game game = createGame(filename);
 
         initializePlayers(in, game);
         processGameCommands(in, game);
@@ -85,28 +84,28 @@ public class Main {
      * - Subsequent lines: grid layout with characters representing different game elements
      *
      * @param filename The path to the grid configuration file
-     * @return A new Grid object initialized with the file contents
+     * @return A new Game object initialized with the file contents (rows, cols, gridData)
      * @throws IllegalArgumentException if the file is not found or has invalid format
      */
-
-    private static Grid loadGridFromFile(String filename) {
+    private static Game createGame(String filename) {
+        Scanner fileScanner;
         try {
-            Scanner file = new Scanner(new FileReader(filename));
-            int rows = file.nextInt();
-            int cols = file.nextInt();
-            file.nextLine();
-
-            Grid grid = new Grid(rows, cols);
-
-            for (int i = 0; i < rows; i++) {
-                char[] row = file.nextLine().toCharArray();
-                grid.loadRow(i, row);
-            }
-            file.close();
-            return grid;
+            fileScanner = new Scanner(new FileReader(filename));
         } catch (FileNotFoundException e) {
             throw new IllegalArgumentException(filename);
         }
+
+        int rows = fileScanner.nextInt();
+        int cols = fileScanner.nextInt();
+        fileScanner.nextLine();
+
+        char[][] gridData = new char[rows][];
+        for (int i = 0; i < rows; i++) {
+            gridData[i] = fileScanner.nextLine().toCharArray();
+        }
+        fileScanner.close();
+
+        return new Game(rows, cols, gridData);
     }
 
     /**
@@ -230,19 +229,17 @@ public class Main {
      * @param game The game instance to execute the movement in
      */
     private static void handleMove(String direction, Game game) {
-        Player player = game.getCurrentPlayer();
         int result = game.movePlayer(direction);
-        Position pos = player.getPosition();
+        int row = game.getPlayerRow();
+        int col = game.getPlayerCol();
         switch (result) {
-            case Game.MOVE_SUCCESS -> System.out.printf(MSG_MOVE_RESULT, player.getName(),
-                    pos.getRow(), pos.getColumn());
-            case Game.MOVE_SUCCESS_PROTECTED -> System.out.printf(MSG_PROTECTED, player.getName());
-            case Game.MOVE_OUT_OF_BOUNDS -> System.out.printf(MSG_OUT_OF_BOUNDS, player.getName());
+            case Game.MOVE_SUCCESS -> System.out.printf(MSG_MOVE_RESULT, game.getName(), row, col);
+            case Game.MOVE_SUCCESS_PROTECTED -> System.out.printf(MSG_PROTECTED, game.getName());
+            case Game.MOVE_OUT_OF_BOUNDS -> System.out.printf(MSG_OUT_OF_BOUNDS, game.getName());
             case Game.MOVE_POSITION_OCCUPIED -> System.out.printf(MSG_POSITION_TAKEN);
-            case Game.MOVE_MINE_HIT -> System.out.printf(MSG_STEPPED_MINE, player.getName());
-            case Game.MOVE_SHIELD_PICKUP -> System.out.printf(MSG_SHIELD_PICKUP, player.getName(),
-                    player.getShieldDuration());
-            case Game.MOVE_CRYSTAL_FOUND -> System.out.printf(MSG_CRYSTAL_FOUND, player.getName());
+            case Game.MOVE_MINE_HIT -> System.out.printf(MSG_STEPPED_MINE, game.getName());
+            case Game.MOVE_SHIELD_PICKUP -> System.out.printf(MSG_SHIELD_PICKUP, game.getName(), game.getShield());
+            case Game.MOVE_CRYSTAL_FOUND -> System.out.printf(MSG_CRYSTAL_FOUND, game.getName());
             default -> throw new IllegalStateException();
         }
     }
@@ -254,8 +251,7 @@ public class Main {
      * @param game The game instance to perform detection in
      */
     private static void handleDetect(Game game) {
-        int mines = game.detect();
-        System.out.printf(MSG_MINES_AROUND, mines);
+        System.out.printf(MSG_MINES_AROUND, game.detect());
 
     }
 
@@ -307,11 +303,11 @@ public class Main {
             return;
         }
 
-        Player winner = game.getWinner();
-        if (winner.hasCollectedCrystal()) {
-            System.out.printf(MSG_WINNER_CRYSTAL, winner.getName());
+        String winner = game.getWinner();
+        if (game.isCrystalCollected()) {
+            System.out.printf(MSG_WINNER_CRYSTAL, winner);
         } else {
-            System.out.printf(MSG_WINNER_LAST, winner.getName());
+            System.out.printf(MSG_WINNER_LAST, winner);
         }
     }
 }
