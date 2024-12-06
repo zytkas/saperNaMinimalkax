@@ -78,7 +78,7 @@ public class Main {
     }
 
     /**
-     * Loads and initializes the game grid from a specified file.
+     * Initializes the game grid from a specified file.
      * The file format should contain:
      * - First line: two integers representing rows and columns
      * - Subsequent lines: grid layout with characters representing different game elements
@@ -262,8 +262,8 @@ public class Main {
      * @param game The game instance to skip turn in
      */
     private static void handleSkip(Game game) {
-        System.out.printf(MSG_SKIP_TURN, game.getCurrentPlayer().getName());
         game.skip();
+        System.out.printf(MSG_SKIP_TURN, game.getName());
     }
 
     /**
@@ -294,7 +294,6 @@ public class Main {
      * Verifies if game is over and announces winner based on:
      * - Crystal collection
      * - Last player standing
-     *
      * @param game The game instance to handle quit for
      */
     private static void handleQuit(Game game) {

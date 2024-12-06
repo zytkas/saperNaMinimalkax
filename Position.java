@@ -5,6 +5,10 @@
  */
 
 public class Position {
+    private static final String MOVE_UP = "up";
+    private static final String MOVE_DOWN = "down";
+    private static final String MOVE_LEFT = "left";
+    private static final String MOVE_RIGHT = "right";
     private final int row;
     private final int column;
 
@@ -73,10 +77,10 @@ public class Position {
      */
     public Position calculateNewPosition(String direction) {
         return switch (direction) {
-            case "up" -> new Position(row - 1, column);
-            case "down" -> new Position(row + 1, column);
-            case "left" -> new Position(row, column - 1);
-            case "right" -> new Position(row, column + 1);
+            case MOVE_UP -> new Position(row - 1, column);
+            case MOVE_DOWN -> new Position(row + 1, column);
+            case MOVE_LEFT -> new Position(row, column - 1);
+            case MOVE_RIGHT -> new Position(row, column + 1);
             default -> this;
         };
     }

@@ -38,10 +38,7 @@ public class Game {
     private int allPlayers;
     private int activePlayers;
     private boolean isGameOver;
-    private int lastMoveRow;
-    private int lastMoveCol;
-    private int lastShieldDuration;
-    private String lastPlayerName;
+    private Player lastPlayer;
 
     public Game(int rows, int cols, char[][] gridData) {
         isGameOver = false;
@@ -111,30 +108,35 @@ public class Game {
         Player player = getCurrentPlayer();
         Position newPosition = player.getPosition().calculateNewPosition(direction);
         if (!grid.isValidPosition(newPosition)) {
-            lastPlayerName = player.getName();
+            saveState(player);
             player.finishTurn();
             nextTurn();
             return MOVE_OUT_OF_BOUNDS;
         }
         if (isPositionTaken(newPosition)) {
-            lastPlayerName = player.getName();
+            saveState(player);
             player.finishTurn();
             nextTurn();
             return MOVE_POSITION_OCCUPIED;
         }
         char cell = grid.getCell(newPosition);
         int result = processCell(player, newPosition, cell);
-        int row = player.getPosition().getRow();
-        int col = player.getPosition().getColumn();
-        lastPlayerName = player.getName();
         player.finishTurn();
         if (!isGameOver) {
             nextTurn();
         }
-        lastMoveRow = row;
-        lastMoveCol = col;
-        lastShieldDuration = player.getShieldDuration();
+        saveState(player);
         return result;
+    }
+
+    /**
+     * Saves the current state of a player before their turn ends.
+     * Updates the last known position, name, and shield duration.
+     *
+     * @param player The player whose state should be saved
+     */
+    private void saveState(Player player) {
+        lastPlayer = player;
     }
 
     /**
@@ -203,10 +205,13 @@ public class Game {
 
     /**
      * Allows the current player to skip their turn.
+     * Save current state of the player conditions.
      * Advances the game to the next player's turn.
      */
     public void skip() {
-        getCurrentPlayer().finishTurn();
+        Player player = getCurrentPlayer();
+        saveState(player);
+        player.finishTurn();
         nextTurn();
     }
 
@@ -301,7 +306,7 @@ public class Game {
      * 2. Last surviving player
      * 3. First available player (fallback)
      *
-     * @return The winning Player object
+     * @return The winning Player name
      */
     public String getWinner() {
         if (isGameOver) {
@@ -372,6 +377,7 @@ public class Game {
     public boolean isCrystalCollected(){
         return getWinnerWithCrystal() != null;
     }
+
     /**
      * Checks if the game has ended.
      *
@@ -390,21 +396,40 @@ public class Game {
         return players[currentPlayerIndex];
     }
 
-    public int getPlayerCol(){
-        return lastMoveCol;
+    /**
+     * Gets the column position of the player who just completed their turn. (1-based indexing)
+     *
+     * @return The column coordinate of the last player's position
+     */
+    public int getPlayerCol() {
+        return lastPlayer.getPosition().getColumn();
     }
 
-    public int getPlayerRow(){
-        return lastMoveRow;
+    /**
+     * Gets the row position of the player who just completed their turn. (1-based indexing)
+     *
+     * @return The row coordinate of the last player's position
+     */
+    public int getPlayerRow() {
+        return lastPlayer.getPosition().getRow();
     }
 
-    public String getName(){
-        return lastPlayerName;
+    /**
+     * Gets the name of the player who just completed their turn.
+     *
+     * @return The name of the last active player
+     */
+    public String getName() {
+        return lastPlayer.getName();
     }
 
-    public int getShield(){
-        return lastShieldDuration;
+    /**
+     * Gets the shield duration of the player who just completed their turn.
+     *
+     * @return The remaining shield duration of the last active player
+     */
+    public int getShield() {
+        return lastPlayer.getShieldDuration();
     }
-
 
 }
